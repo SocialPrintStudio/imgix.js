@@ -1,4 +1,4 @@
-/*! http://www.imgix.com imgix.js - v2.0.0 - 2015-11-10 
+/*! http://www.imgix.com imgix.js - v2.0.0 - 2015-11-23 
  _                    _             _
 (_)                  (_)           (_)
  _  _ __ ___    __ _  _ __  __      _  ___
@@ -1572,8 +1572,11 @@ imgix.FluidSet.prototype.updateSrc = function (elem, pinchScale) {
     elem.setAttribute('src', imgix.getEmptyImage());
   }
 
+
+  var eager = elem.className.indexOf('eager') !== -1;
+
   // Short-circuit if the image is hidden
-  if (!elem.offsetWidth && !elem.offsetHeight && !elem.getClientRects().length) {
+  if (!eager && !elem.offsetWidth && !elem.offsetHeight && !elem.getClientRects().length) {
     return;
   }
 
@@ -1582,7 +1585,7 @@ imgix.FluidSet.prototype.updateSrc = function (elem, pinchScale) {
     currentElemWidth = details.width,
     currentElemHeight = details.height;
 
-  if (this.options.lazyLoad) {
+  if (this.options.lazyLoad && !eager) {
     var r = elem.getBoundingClientRect(),
         view = {
           left: 0 - this.lazyLoadOffsets.l,
@@ -1591,7 +1594,9 @@ imgix.FluidSet.prototype.updateSrc = function (elem, pinchScale) {
           right: (window.innerWidth || document.documentElement.clientWidth) + this.lazyLoadOffsets.r
         };
 
-    if ((r.top > view.bottom) || (r.left > view.right) || (r.top + currentElemHeight < view.top) || (r.left + currentElemWidth < view.left)) {
+    var outOfBounds = (r.top > view.bottom) || (r.left > view.right) || (r.top + currentElemHeight < view.top) || (r.left + currentElemWidth < view.left);
+
+    if (outOfBounds) {
 
       if (!elem.fluidLazyColored && this.options.lazyLoadColor) {
         elem.fluidLazyColored = 1;
@@ -1759,7 +1764,8 @@ imgix.FluidSet.prototype.attachGestureEvent = function (elem) {
 };
 
 var scrollInstances = {},
-  resizeInstances = {};
+    resizeInstances = {},
+    clickInstances = {};
 
 imgix.FluidSet.prototype.attachScrollListener = function () {
   var th = this;
@@ -1772,6 +1778,22 @@ imgix.FluidSet.prototype.attachScrollListener = function () {
     window.addEventListener('scroll', scrollInstances[this.namespace], false);
   } else {
     window.attachEvent('onscroll', scrollInstances[this.namespace]);
+  }
+
+  this.windowScrollEventBound = true;
+};
+
+imgix.FluidSet.prototype.attachClickListener = function () {
+  var th = this;
+
+  clickInstances[this.namespace] = imgix.helpers.throttler(function () {
+    th.reload();
+  }, this.options.throttle);
+
+  if (document.addEventListener) {
+    window.addEventListener('click', clickInstances[this.namespace], false);
+  } else {
+    window.attachEvent('onclick', clickInstances[this.namespace]);
   }
 
   this.windowScrollEventBound = true;
@@ -1942,9 +1964,14 @@ imgix.fluid = function () {
     fluidSet.attachScrollListener();
   }
 
+  if (options.lazyLoad && !fluidSet.windowClickEventBound) {
+    fluidSet.attachClickListener();
+  }
+
   if (options.updateOnResize && !fluidSet.windowResizeEventBound) {
     fluidSet.attachWindowResizer();
   }
+
 
   return fluidSet;
 };
