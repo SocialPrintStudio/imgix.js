@@ -48,6 +48,13 @@ module.exports = function(grunt) {
 			version: '0.1.0'
 		},
 
+    watch: {
+      scripts: {
+        files: ['src/*.js'],
+        tasks: ['build']
+      }
+    },
+
 		uglify: {
 			options: {
 				stripBanners: false,
